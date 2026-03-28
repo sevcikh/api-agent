@@ -2,7 +2,9 @@
 
 import json
 import logging
+from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 import httpx
 import yaml
@@ -226,15 +228,27 @@ def normalize_swagger2_to_oas3(swagger_spec: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
+def _load_file_spec(path: str) -> dict[str, Any]:
+    """Load OpenAPI spec from a local file path."""
+    file_path = Path(path)
+    if not file_path.is_file():
+        logger.error(f"Local spec file not found: {file_path}")
+        return {}
+    raw = file_path.read_text(encoding="utf-8")
+    if raw.strip().startswith("{"):
+        return json.loads(raw)
+    return yaml.safe_load(raw) or {}
+
+
 async def load_openapi_spec(
     spec_url: str,
     headers: dict[str, str] | None = None,
 ) -> dict[str, Any]:
-    """Load OpenAPI 3.x spec from URL.
+    """Load OpenAPI 3.x spec from URL or local file (file:// URI).
 
     Args:
-        spec_url: URL to OpenAPI 3.x spec
-        headers: Optional auth headers
+        spec_url: URL to OpenAPI 3.x spec, or file:///path/to/spec.yaml
+        headers: Optional auth headers (ignored for file:// URIs)
 
     Returns:
         Parsed OpenAPI spec dict, or empty dict on error.
@@ -242,19 +256,21 @@ async def load_openapi_spec(
     if not spec_url:
         return {}
 
-    request_headers = dict(headers) if headers else {}
-
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            resp = await client.get(spec_url, headers=request_headers)
-            resp.raise_for_status()
-            raw = resp.text
-
-        # Parse JSON or YAML
-        if raw.strip().startswith("{"):
-            spec = json.loads(raw)
+        parsed_url = urlparse(spec_url)
+        if parsed_url.scheme == "file":
+            spec = _load_file_spec(parsed_url.path)
         else:
-            spec = yaml.safe_load(raw)
+            request_headers = dict(headers) if headers else {}
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                resp = await client.get(spec_url, headers=request_headers)
+                resp.raise_for_status()
+                raw = resp.text
+
+            if raw.strip().startswith("{"):
+                spec = json.loads(raw)
+            else:
+                spec = yaml.safe_load(raw)
 
         if not isinstance(spec, dict):
             logger.warning("OpenAPI spec root is not an object")
