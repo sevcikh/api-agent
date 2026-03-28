@@ -1,8 +1,21 @@
 """Tests for poll_until_done tool helper functions and logic."""
 
 import pytest
+from agents.tool_context import ToolContext
+from agents.usage import Usage
 
 from api_agent.agent.rest_agent import _get_nested_value, _set_nested_value
+
+
+def _make_tool_ctx(tool_name: str = "poll_until_done", input_json: str = "") -> ToolContext:
+    """Create a minimal ToolContext for testing tool invocation."""
+    return ToolContext(
+        context=None,
+        usage=Usage(),
+        tool_name=tool_name,
+        tool_call_id="test_call",
+        tool_arguments=input_json,
+    )
 
 
 class TestGetNestedValue:
@@ -95,18 +108,16 @@ class TestPollBlocking:
         )
         poll_tool = _create_poll_tool(ctx, "https://api.example.com")
 
-        result = await poll_tool.on_invoke_tool(
-            None,
-            json.dumps(
-                {
-                    "method": "POST",
-                    "path": "/search",
-                    "done_field": "polling.completed",
-                    "done_value": "true",
-                    "body": json.dumps({"polling": {"count": 1}}),
-                }
-            ),
+        input_json = json.dumps(
+            {
+                "method": "POST",
+                "path": "/search",
+                "done_field": "polling.completed",
+                "done_value": "true",
+                "body": json.dumps({"polling": {"count": 1}}),
+            }
         )
+        result = await poll_tool.on_invoke_tool(_make_tool_ctx(input_json=input_json), input_json)
         result_dict = json.loads(result)
         assert result_dict["success"] is False
         assert "not allowed" in result_dict.get("error", "")
@@ -129,18 +140,16 @@ class TestPollBlocking:
         )
         poll_tool = _create_poll_tool(ctx, "https://api.example.com")
 
-        result = await poll_tool.on_invoke_tool(
-            None,
-            json.dumps(
-                {
-                    "method": "POST",
-                    "path": "/search/flights",
-                    "done_field": "polling.completed",
-                    "done_value": "true",
-                    "body": json.dumps({"polling": {"count": 1}}),
-                }
-            ),
+        input_json = json.dumps(
+            {
+                "method": "POST",
+                "path": "/search/flights",
+                "done_field": "polling.completed",
+                "done_value": "true",
+                "body": json.dumps({"polling": {"count": 1}}),
+            }
         )
+        result = await poll_tool.on_invoke_tool(_make_tool_ctx(input_json=input_json), input_json)
         result_dict = json.loads(result)
         # Will fail with connection error but NOT blocked
         assert "not allowed" not in result_dict.get("error", "")
@@ -177,16 +186,16 @@ class TestPollGuardrails:
             new_callable=AsyncMock,
             return_value={"success": True, "data": mock_response},
         ):
+            input_json = json.dumps(
+                {
+                    "method": "POST",
+                    "path": "/search/flights",
+                    "done_field": "polling.completed",  # doesn't exist
+                    "done_value": "true",
+                }
+            )
             result = await poll_tool.on_invoke_tool(
-                None,
-                json.dumps(
-                    {
-                        "method": "POST",
-                        "path": "/search/flights",
-                        "done_field": "polling.completed",  # doesn't exist
-                        "done_value": "true",
-                    }
-                ),
+                _make_tool_ctx(input_json=input_json), input_json
             )
             result_dict = json.loads(result)
             assert result_dict["success"] is False
@@ -231,17 +240,17 @@ class TestPollGuardrails:
             new_callable=AsyncMock,
             side_effect=mock_request,
         ):
+            input_json = json.dumps(
+                {
+                    "method": "POST",
+                    "path": "/search/flights",
+                    "done_field": "polling.completed",
+                    "done_value": "true",
+                    "delay_ms": 100,  # Agent overrides to 100ms
+                }
+            )
             result = await poll_tool.on_invoke_tool(
-                None,
-                json.dumps(
-                    {
-                        "method": "POST",
-                        "path": "/search/flights",
-                        "done_field": "polling.completed",
-                        "done_value": "true",
-                        "delay_ms": 100,  # Agent overrides to 100ms
-                    }
-                ),
+                _make_tool_ctx(input_json=input_json), input_json
             )
             result_dict = json.loads(result)
             assert result_dict["success"] is True
@@ -277,17 +286,17 @@ class TestPollGuardrails:
                 "data": {"polling": {"completed": False}},
             },
         ):
+            input_json = json.dumps(
+                {
+                    "method": "POST",
+                    "path": "/search/flights",
+                    "done_field": "polling.completed",
+                    "done_value": "true",
+                    "delay_ms": 1,
+                }
+            )
             result = await poll_tool.on_invoke_tool(
-                None,
-                json.dumps(
-                    {
-                        "method": "POST",
-                        "path": "/search/flights",
-                        "done_field": "polling.completed",
-                        "done_value": "true",
-                        "delay_ms": 1,
-                    }
-                ),
+                _make_tool_ctx(input_json=input_json), input_json
             )
             result_dict = json.loads(result)
             assert result_dict["success"] is False
@@ -331,18 +340,18 @@ class TestPollGuardrails:
             new_callable=AsyncMock,
             side_effect=mock_request,
         ):
+            input_json = json.dumps(
+                {
+                    "method": "POST",
+                    "path": "/search/flights",
+                    "body": json.dumps({"polling": {"count": 1}}),
+                    "done_field": "polling.completed",
+                    "done_value": "true",
+                    "delay_ms": 1,
+                }
+            )
             result = await poll_tool.on_invoke_tool(
-                None,
-                json.dumps(
-                    {
-                        "method": "POST",
-                        "path": "/search/flights",
-                        "body": json.dumps({"polling": {"count": 1}}),
-                        "done_field": "polling.completed",
-                        "done_value": "true",
-                        "delay_ms": 1,
-                    }
-                ),
+                _make_tool_ctx(input_json=input_json), input_json
             )
             result_dict = json.loads(result)
             assert result_dict["success"] is True
@@ -387,17 +396,17 @@ class TestPollGuardrails:
             new_callable=AsyncMock,
             side_effect=mock_request,
         ):
+            input_json = json.dumps(
+                {
+                    "method": "POST",
+                    "path": "/flights/search",
+                    "done_field": "retry.next",
+                    "done_value": "0",  # 0 means done
+                    "delay_ms": 1,
+                }
+            )
             result = await poll_tool.on_invoke_tool(
-                None,
-                json.dumps(
-                    {
-                        "method": "POST",
-                        "path": "/flights/search",
-                        "done_field": "retry.next",
-                        "done_value": "0",  # 0 means done
-                        "delay_ms": 1,
-                    }
-                ),
+                _make_tool_ctx(input_json=input_json), input_json
             )
             result_dict = json.loads(result)
             assert result_dict["success"] is True
@@ -422,18 +431,16 @@ class TestPollGuardrails:
         )
         poll_tool = _create_poll_tool(ctx, "https://api.example.com")
 
-        result = await poll_tool.on_invoke_tool(
-            None,
-            json.dumps(
-                {
-                    "method": "POST",
-                    "path": "/search/flights",
-                    "done_field": "polling.completed",
-                    "done_value": "true",
-                    "body": "not-json",
-                }
-            ),
+        input_json = json.dumps(
+            {
+                "method": "POST",
+                "path": "/search/flights",
+                "done_field": "polling.completed",
+                "done_value": "true",
+                "body": "not-json",
+            }
         )
+        result = await poll_tool.on_invoke_tool(_make_tool_ctx(input_json=input_json), input_json)
         result_dict = json.loads(result)
         assert result_dict["success"] is False
         assert "invalid body json" in result_dict["error"].lower()
@@ -473,18 +480,18 @@ class TestPollGuardrails:
             new_callable=AsyncMock,
             side_effect=mock_request,
         ):
+            input_json = json.dumps(
+                {
+                    "method": "POST",
+                    "path": "/status/check",
+                    "body": json.dumps({"query": "test"}),  # No polling.count
+                    "done_field": "status.done",
+                    "done_value": "true",
+                    "delay_ms": 1,
+                }
+            )
             result = await poll_tool.on_invoke_tool(
-                None,
-                json.dumps(
-                    {
-                        "method": "POST",
-                        "path": "/status/check",
-                        "body": json.dumps({"query": "test"}),  # No polling.count
-                        "done_field": "status.done",
-                        "done_value": "true",
-                        "delay_ms": 1,
-                    }
-                ),
+                _make_tool_ctx(input_json=input_json), input_json
             )
             result_dict = json.loads(result)
             assert result_dict["success"] is True

@@ -48,7 +48,9 @@ async def test_execute_query_requires_endpoint():
 
 @pytest.mark.asyncio
 async def test_execute_query_blocks_mutations():
-    result = await execute_query("mutation { createUser(name: \"x\") { id } }", endpoint="https://api")
+    result = await execute_query(
+        'mutation { createUser(name: "x") { id } }', endpoint="https://api"
+    )
     assert result["success"] is False
     assert result["error"] == "Mutations are not allowed (read-only mode)"
 
@@ -112,7 +114,9 @@ async def test_execute_query_returns_http_status_error(monkeypatch):
     client = _mock_client(mock_resp)
 
     monkeypatch.setattr("api_agent.graphql.client.httpx.AsyncClient", lambda **_kwargs: client)
-    result = await execute_query("query { users { id } }", endpoint="https://api.example.com/graphql")
+    result = await execute_query(
+        "query { users { id } }", endpoint="https://api.example.com/graphql"
+    )
     assert result["success"] is False
     assert result["error"] == "HTTP 404"
     assert result["status_code"] == 404
@@ -125,6 +129,8 @@ async def test_execute_query_returns_generic_exception(monkeypatch):
 
     client = _mock_client(_raise_error)
     monkeypatch.setattr("api_agent.graphql.client.httpx.AsyncClient", lambda **_kwargs: client)
-    result = await execute_query("query { users { id } }", endpoint="https://api.example.com/graphql")
+    result = await execute_query(
+        "query { users { id } }", endpoint="https://api.example.com/graphql"
+    )
     assert result["success"] is False
     assert result["error"] == "boom"

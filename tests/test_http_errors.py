@@ -13,7 +13,9 @@ def _response(status: int, *, json_body=None, text_body: str = "") -> httpx.Resp
 
 
 def test_extract_http_error_details_prefers_errors_field():
-    response = _response(400, json_body={"errors": [{"message": "bad field"}], "message": "ignored"})
+    response = _response(
+        400, json_body={"errors": [{"message": "bad field"}], "message": "ignored"}
+    )
     assert extract_http_error_details(response) == [{"message": "bad field"}]
 
 

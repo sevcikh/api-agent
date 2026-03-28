@@ -7,16 +7,16 @@ import httpx
 import pytest
 
 from api_agent.rest.schema_loader import (
+    _format_params,
+    _format_schema,
+    _infer_string_format,
     _rewrite_swagger_ref,
+    _schema_to_type,
     _swagger_param_to_oas3,
     _swagger_request_body_to_oas3,
     _swagger_responses_to_oas3,
     _swagger_security_to_oas3,
     _swagger_servers_from_spec,
-    _format_params,
-    _format_schema,
-    _infer_string_format,
-    _schema_to_type,
     build_schema_context,
     load_openapi_spec,
     normalize_swagger2_to_oas3,
@@ -396,7 +396,9 @@ class TestSwagger2Normalization:
             "schemes": ["https"],
             "paths": {
                 "/users/{id}": {
-                    "parameters": [{"name": "id", "in": "path", "required": True, "type": "string"}],
+                    "parameters": [
+                        {"name": "id", "in": "path", "required": True, "type": "string"}
+                    ],
                     "get": {
                         "summary": "Get user",
                         "responses": {"200": {"schema": {"$ref": "#/definitions/User"}}},
@@ -460,7 +462,9 @@ class TestSwagger2Normalization:
             "paths": {
                 "/users/{id}": {
                     "get": {
-                        "parameters": [{"name": "id", "in": "path", "required": True, "type": "string"}],
+                        "parameters": [
+                            {"name": "id", "in": "path", "required": True, "type": "string"}
+                        ],
                         "responses": {"200": {"schema": {"$ref": "#/definitions/User"}}},
                     }
                 }

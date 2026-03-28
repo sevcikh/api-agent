@@ -385,9 +385,7 @@ class TestRecipeToolErrors:
             return None
 
         # Non-dict arguments should raise ValidationError
-        message = mt.CallToolRequestParams.model_construct(
-            name="r_test", arguments="not_a_dict"
-        )
+        message = mt.CallToolRequestParams.model_construct(name="r_test", arguments="not_a_dict")
         context = MiddlewareContext(message=message)
 
         with patch("api_agent.middleware.get_http_headers") as mock_headers:
