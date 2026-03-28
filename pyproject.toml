@@ -9,7 +9,7 @@ requires-python = ">=3.11"
 dependencies = [
     "arize-otel>=0.11.0",
     "duckdb>=1.0.0",
-    "fastmcp>=2.13.3",
+    "fastmcp>=2.14.2",
     "httpx>=0.28.1",
     "openai-agents>=0.0.3",
     "openinference-instrumentation-openai-agents>=1.4.0",
